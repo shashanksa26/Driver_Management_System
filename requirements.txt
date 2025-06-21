@@ -1,0 +1,5 @@
+tflite-runtime
+opencv-python-headless
+pymongo
+mediapipe
+opencv-python
