@@ -8,7 +8,7 @@ from drowsiness import run_drowsiness_monitor
 def recognize_faces(face_detection):
     while True:
         employee_data = list(employees.find({}))
-        known_embeddings = {emp['employee_id']: np.array(emp['avg_embedding']) for emp in employee_data}
+        known_embeddings = {emp['employee_id']: np.array(emp['avg_embedding'], dtype=np.float32) for emp in employee_data}
         if not known_embeddings:
             print("No employees registered in database!")
             return
@@ -23,7 +23,9 @@ def recognize_faces(face_detection):
             ret, frame = cap.read()
             if not ret:
                 continue
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # Downscale for recognition to reduce memory and match model input
+            small_frame = cv2.resize(frame, (160, 160))
+            rgb_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
             results = face_detection.process(rgb_frame)
             detected = False
             if results.detections:
@@ -44,6 +46,9 @@ def recognize_faces(face_detection):
                     best_match = None
                     best_similarity = 0
                     for emp_id, ref_embedding in known_embeddings.items():
+                        if embedding.shape != ref_embedding.shape:
+                            print(f"[WARN] Shape mismatch: {embedding.shape} vs {ref_embedding.shape} for {emp_id}. Skipping.")
+                            continue
                         similarity = cosine_similarity(embedding, ref_embedding)
                         if similarity > best_similarity:
                             best_similarity = similarity
