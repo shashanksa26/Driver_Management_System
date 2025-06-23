@@ -213,6 +213,14 @@ def run_drowsiness_monitor(user_id, webcam_index=0, alarm_path="Alert.WAV"):
         cv2.putText(frame, f"FPS: {fps}", (text_x_pos, text_y_pos + int(90 * RESIZE_FACTOR)), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(RESIZE_FACTOR), (0, 0, 255), get_scaled_thickness(RESIZE_FACTOR))
         memory_usage = get_memory_usage()
         cv2.putText(frame, f"MEM: {memory_usage:.1f}MB", (text_x_pos, text_y_pos + int(120 * RESIZE_FACTOR)), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(RESIZE_FACTOR), (0, 0, 255), get_scaled_thickness(RESIZE_FACTOR))
+        # Display current date and time at the left bottom
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        date_time_font_scale = get_scaled_font_scale(RESIZE_FACTOR)
+        date_time_thickness = get_scaled_thickness(RESIZE_FACTOR)
+        date_time_size = cv2.getTextSize(now_str, cv2.FONT_HERSHEY_SIMPLEX, date_time_font_scale, date_time_thickness)[0]
+        date_time_x = 10
+        date_time_y = height - 10
+        cv2.putText(frame, now_str, (date_time_x, date_time_y), cv2.FONT_HERSHEY_SIMPLEX, date_time_font_scale, (255, 255, 255), date_time_thickness)
         # Display alert text if within display time
         current_time = time.time()
         if current_time - last_alert_time < ALERT_DISPLAY_TIME and current_alert:
