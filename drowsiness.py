@@ -23,6 +23,7 @@ FONT_THICKNESS = 2
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 600
 NO_FACE_MAX = 60  # Number of frames with no face before returning to recognition
+DISTRACTION_MIN_DURATION = 5  # seconds
 
 # Initialize pygame mixer for sound
 pygame.mixer.init()
@@ -122,6 +123,7 @@ def run_drowsiness_monitor(user_id, webcam_index=0, alarm_path="Alert.WAV"):
     prev_frame_time = 0
     memory_usage = 0
     no_face_counter = 0
+    distraction_start_time = None
     # Parse user_id for name and id
     if '(' in user_id and user_id.endswith(')'):
         name, emp_id = user_id.rsplit('(', 1)
@@ -186,17 +188,23 @@ def run_drowsiness_monitor(user_id, webcam_index=0, alarm_path="Alert.WAV"):
                         t.daemon = True
                         t.start()
                         save_alert(emp_id, name, current_alert, frame)
-                # Distraction detection
+                # Distraction detection with 5s delay
+                current_time = time.time()
                 if abs(head_angle) > HEAD_POSE_THRESH:
-                    current_time = time.time()
-                    if (current_time - last_alarm_time) > ALARM_COOLDOWN:
-                        last_alarm_time = current_time
-                        current_alert = "DISTRACTION ALERT!"
-                        last_alert_time = current_time
-                        t = Thread(target=sound_alarm, args=(alarm_path,))
-                        t.daemon = True
-                        t.start()
-                        save_alert(emp_id, name, current_alert, frame)
+                    if distraction_start_time is None:
+                        distraction_start_time = current_time
+                    elif (current_time - distraction_start_time) >= DISTRACTION_MIN_DURATION:
+                        if (current_time - last_alarm_time) > ALARM_COOLDOWN:
+                            last_alarm_time = current_time
+                            current_alert = "DISTRACTION ALERT!"
+                            last_alert_time = current_time
+                            t = Thread(target=sound_alarm, args=(alarm_path,))
+                            t.daemon = True
+                            t.start()
+                            save_alert(emp_id, name, current_alert, frame)
+                            distraction_start_time = None  # Reset after alert
+                else:
+                    distraction_start_time = None
         else:
             no_face_counter += 1
         # Display metrics
