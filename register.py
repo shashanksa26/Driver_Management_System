@@ -16,16 +16,31 @@ def register_new_employee(face_detection):
     embeddings = []
     sample_count = 0
     required_samples = 5
+    print(f"Press SPACE to start capturing {required_samples} face samples, or 'q' to quit.")
+
+    # Wait for space bar to start
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            continue
+        cv2.putText(frame, "Press SPACE to start capturing, 'q' to quit", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+        cv2.imshow("Registration - Waiting to Start", frame)
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord(' '):
+            break
+        elif key == ord('q'):
+            cap.release()
+            cv2.destroyAllWindows()
+            print("Registration cancelled by user.")
+            return
+
     print(f"Capturing {required_samples} face samples...")
-    
     while sample_count < required_samples:
         ret, frame = cap.read()
         if not ret:
             continue
-        
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = face_detection.process(rgb_frame)
-        
         if results.detections:
             for detection in results.detections:
                 bboxC = detection.location_data.relative_bounding_box
@@ -44,7 +59,8 @@ def register_new_employee(face_detection):
                 sample_count += 1
                 cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
                 cv2.putText(frame, f"Sample: {sample_count}/{required_samples}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-        cv2.imshow("Registration - Press 'q' to cancel", frame)
+        cv2.putText(frame, "Press 'q' to cancel", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+        cv2.imshow("Registration - Capturing", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     cap.release()

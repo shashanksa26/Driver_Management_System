@@ -6,6 +6,9 @@ import pygame
 import os
 from threading import Thread
 import psutil
+import base64
+from datetime import datetime
+from MongoDB import employees, db
 
 # Global variables and constants
 EYE_AR_THRESH = 0.25
@@ -23,6 +26,9 @@ NO_FACE_MAX = 60  # Number of frames with no face before returning to recognitio
 
 # Initialize pygame mixer for sound
 pygame.mixer.init()
+
+# Add alerts collection
+alerts = db['alerts']
 
 # Helper functions
 
@@ -81,6 +87,19 @@ def get_memory_usage():
     process = psutil.Process(os.getpid())
     return process.memory_info().rss / 1024 / 1024
 
+def save_alert(employee_id, name, alert_type, frame):
+    # Encode frame as base64
+    _, buffer = cv2.imencode('.jpg', frame)
+    img_base64 = base64.b64encode(buffer).decode('utf-8')
+    alert_doc = {
+        'employee_id': employee_id,
+        'name': name,
+        'alert_type': alert_type,
+        'timestamp': datetime.now(),
+        'frame_base64': img_base64
+    }
+    alerts.insert_one(alert_doc)
+
 def run_drowsiness_monitor(user_id, webcam_index=0, alarm_path="Alert.WAV"):
     mp_face_mesh = mp.solutions.face_mesh
     face_mesh = mp_face_mesh.FaceMesh(
@@ -103,6 +122,14 @@ def run_drowsiness_monitor(user_id, webcam_index=0, alarm_path="Alert.WAV"):
     prev_frame_time = 0
     memory_usage = 0
     no_face_counter = 0
+    # Parse user_id for name and id
+    if '(' in user_id and user_id.endswith(')'):
+        name, emp_id = user_id.rsplit('(', 1)
+        name = name.strip()
+        emp_id = emp_id[:-1].strip()
+    else:
+        name = user_id
+        emp_id = user_id
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -145,6 +172,7 @@ def run_drowsiness_monitor(user_id, webcam_index=0, alarm_path="Alert.WAV"):
                             t = Thread(target=sound_alarm, args=(alarm_path,))
                             t.daemon = True
                             t.start()
+                            save_alert(emp_id, name, current_alert, frame)
                 else:
                     COUNTER = 0
                 # Yawn detection
@@ -157,6 +185,7 @@ def run_drowsiness_monitor(user_id, webcam_index=0, alarm_path="Alert.WAV"):
                         t = Thread(target=sound_alarm, args=(alarm_path,))
                         t.daemon = True
                         t.start()
+                        save_alert(emp_id, name, current_alert, frame)
                 # Distraction detection
                 if abs(head_angle) > HEAD_POSE_THRESH:
                     current_time = time.time()
@@ -167,6 +196,7 @@ def run_drowsiness_monitor(user_id, webcam_index=0, alarm_path="Alert.WAV"):
                         t = Thread(target=sound_alarm, args=(alarm_path,))
                         t.daemon = True
                         t.start()
+                        save_alert(emp_id, name, current_alert, frame)
         else:
             no_face_counter += 1
         # Display metrics

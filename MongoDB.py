@@ -9,3 +9,4 @@ MONGO_DB = os.environ.get('MONGO_DB')
 client = MongoClient(MONGO_URI)
 db = client[MONGO_DB]
 employees = db['employees']
+alerts = db['alerts']
