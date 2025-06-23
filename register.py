@@ -13,6 +13,8 @@ def register_new_employee(face_detection):
         return
     
     cap = cv2.VideoCapture(0)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 160)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 160)
     embeddings = []
     sample_count = 0
     required_samples = 5

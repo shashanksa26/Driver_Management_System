@@ -12,7 +12,7 @@ from MongoDB import employees, db
 
 # Global variables and constants
 EYE_AR_THRESH = 0.25
-EYE_AR_CONSEC_FRAMES = 100
+EYE_DROWSINESS_MIN_DURATION = 3  # seconds
 YAWN_THRESH = 25
 HEAD_POSE_THRESH = 18
 ALARM_COOLDOWN = 3
@@ -112,11 +112,13 @@ def run_drowsiness_monitor(user_id, webcam_index=0, alarm_path="Alert.WAV"):
     )
     print(f"-> Starting Drowsiness Monitor for user: {user_id}")
     cap = cv2.VideoCapture(webcam_index)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 160)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 160)
     if not cap.isOpened():
         print(f"Error: Could not open video stream from webcam index {webcam_index}.")
         return
     cv2.namedWindow("Driver Monitoring", cv2.WINDOW_NORMAL)
-    COUNTER = 0
+    drowsy_start_time = None
     last_alarm_time = 0
     last_alert_time = 0
     current_alert = ""
@@ -141,13 +143,9 @@ def run_drowsiness_monitor(user_id, webcam_index=0, alarm_path="Alert.WAV"):
         fps = 1/(new_frame_time-prev_frame_time) if prev_frame_time else 0
         prev_frame_time = new_frame_time
         fps = int(fps)
-        scale_factor = min(WINDOW_WIDTH / frame.shape[1], WINDOW_HEIGHT / frame.shape[0])
-        new_width = int(frame.shape[1] * scale_factor)
-        new_height = int(frame.shape[0] * scale_factor)
-        frame = cv2.resize(frame, (new_width, new_height))
+        # Use the frame directly, no resizing
         height, width = frame.shape[:2]
-        small_frame = cv2.resize(frame, (int(width * RESIZE_FACTOR), int(height * RESIZE_FACTOR)))
-        rgb_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         rgb_frame.flags.writeable = False
         results = face_mesh.process(rgb_frame)
         rgb_frame.flags.writeable = True
@@ -162,11 +160,12 @@ def run_drowsiness_monitor(user_id, webcam_index=0, alarm_path="Alert.WAV"):
                 eye = final_ear(landmarks)
                 ear = eye[0]
                 distance = lip_distance(landmarks)
-                # Drowsiness detection
+                current_time = time.time()
+                # Drowsiness detection (3 seconds duration)
                 if ear < EYE_AR_THRESH:
-                    COUNTER += 1
-                    if COUNTER >= EYE_AR_CONSEC_FRAMES:
-                        current_time = time.time()
+                    if drowsy_start_time is None:
+                        drowsy_start_time = current_time
+                    elif (current_time - drowsy_start_time) >= EYE_DROWSINESS_MIN_DURATION:
                         if (current_time - last_alarm_time) > ALARM_COOLDOWN:
                             last_alarm_time = current_time
                             current_alert = "DROWSINESS ALERT!"
@@ -175,8 +174,9 @@ def run_drowsiness_monitor(user_id, webcam_index=0, alarm_path="Alert.WAV"):
                             t.daemon = True
                             t.start()
                             save_alert(emp_id, name, current_alert, frame)
+                            drowsy_start_time = None  # Reset after alert
                 else:
-                    COUNTER = 0
+                    drowsy_start_time = None
                 # Yawn detection
                 if distance > YAWN_THRESH:
                     current_time = time.time()
@@ -208,15 +208,15 @@ def run_drowsiness_monitor(user_id, webcam_index=0, alarm_path="Alert.WAV"):
         else:
             no_face_counter += 1
         # Display metrics
-        text_y_pos = int(30 * scale_factor)
-        text_x_pos = int(frame.shape[1] - 200)
-        cv2.putText(frame, f"User: {user_id}", (10, text_y_pos), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(scale_factor), (255, 255, 0), get_scaled_thickness(scale_factor))
-        cv2.putText(frame, f"EAR: {ear:.2f}", (text_x_pos, text_y_pos), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(scale_factor), (0, 0, 255), get_scaled_thickness(scale_factor))
-        cv2.putText(frame, f"YAWN: {distance:.2f}", (text_x_pos, text_y_pos + int(30 * scale_factor)), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(scale_factor), (0, 0, 255), get_scaled_thickness(scale_factor))
-        cv2.putText(frame, f"HEAD ANGLE: {head_angle:.1f}°", (text_x_pos, text_y_pos + int(60 * scale_factor)), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(scale_factor), (0, 0, 255), get_scaled_thickness(scale_factor))
-        cv2.putText(frame, f"FPS: {fps}", (text_x_pos, text_y_pos + int(90 * scale_factor)), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(scale_factor), (0, 0, 255), get_scaled_thickness(scale_factor))
+        text_y_pos = int(30 * RESIZE_FACTOR)
+        text_x_pos = int(width - 200)
+        cv2.putText(frame, f"User: {user_id}", (10, text_y_pos), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(RESIZE_FACTOR), (255, 255, 0), get_scaled_thickness(RESIZE_FACTOR))
+        cv2.putText(frame, f"EAR: {ear:.2f}", (text_x_pos, text_y_pos), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(RESIZE_FACTOR), (0, 0, 255), get_scaled_thickness(RESIZE_FACTOR))
+        cv2.putText(frame, f"YAWN: {distance:.2f}", (text_x_pos, text_y_pos + int(30 * RESIZE_FACTOR)), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(RESIZE_FACTOR), (0, 0, 255), get_scaled_thickness(RESIZE_FACTOR))
+        cv2.putText(frame, f"HEAD ANGLE: {head_angle:.1f}°", (text_x_pos, text_y_pos + int(60 * RESIZE_FACTOR)), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(RESIZE_FACTOR), (0, 0, 255), get_scaled_thickness(RESIZE_FACTOR))
+        cv2.putText(frame, f"FPS: {fps}", (text_x_pos, text_y_pos + int(90 * RESIZE_FACTOR)), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(RESIZE_FACTOR), (0, 0, 255), get_scaled_thickness(RESIZE_FACTOR))
         memory_usage = get_memory_usage()
-        cv2.putText(frame, f"MEM: {memory_usage:.1f}MB", (text_x_pos, text_y_pos + int(120 * scale_factor)), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(scale_factor), (0, 0, 255), get_scaled_thickness(scale_factor))
+        cv2.putText(frame, f"MEM: {memory_usage:.1f}MB", (text_x_pos, text_y_pos + int(120 * RESIZE_FACTOR)), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(RESIZE_FACTOR), (0, 0, 255), get_scaled_thickness(RESIZE_FACTOR))
         # Display alert text if within display time
         current_time = time.time()
         if current_time - last_alert_time < ALERT_DISPLAY_TIME and current_alert:
@@ -224,8 +224,8 @@ def run_drowsiness_monitor(user_id, webcam_index=0, alarm_path="Alert.WAV"):
             font_scale = 2.0
             thickness = 3
             text_size = cv2.getTextSize(current_alert, font, font_scale, thickness)[0]
-            text_x = (frame.shape[1] - text_size[0]) // 2
-            text_y = frame.shape[0] - 50
+            text_x = (width - text_size[0]) // 2
+            text_y = height - 50
             cv2.putText(frame, current_alert, (text_x, text_y), font, font_scale, (0, 0, 255), thickness)
         cv2.imshow("Driver Monitoring", frame)
         key = cv2.waitKey(1) & 0xFF

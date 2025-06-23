@@ -13,6 +13,8 @@ def recognize_faces(face_detection):
             print("No employees registered in database!")
             return
         cap = cv2.VideoCapture(0)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 160)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 160)
         recognition_active = True
         recognition_threshold = 0.65
         NO_FACE_MAX = 60  # ~2 seconds at 30 FPS
@@ -23,9 +25,7 @@ def recognize_faces(face_detection):
             ret, frame = cap.read()
             if not ret:
                 continue
-            # Downscale for recognition to reduce memory and match model input
-            small_frame = cv2.resize(frame, (160, 160))
-            rgb_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             results = face_detection.process(rgb_frame)
             detected = False
             if results.detections:
