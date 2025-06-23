@@ -2,18 +2,18 @@ import cv2
 import numpy as np
 import mediapipe as mp
 import time
-import pygame
 import os
 from threading import Thread
 import psutil
 import base64
 from datetime import datetime
 from MongoDB import employees, db
+import simpleaudio as sa
 
 # Global variables and constants
 EYE_AR_THRESH = 0.25
 EYE_DROWSINESS_MIN_DURATION = 3  # seconds
-YAWN_THRESH = 25
+YAWN_THRESH = 30
 HEAD_POSE_THRESH = 18
 ALARM_COOLDOWN = 3
 ALERT_DISPLAY_TIME = 3.0  # seconds after last detection
@@ -24,9 +24,6 @@ WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 600
 NO_FACE_MAX = 60  # Number of frames with no face before returning to recognition
 DISTRACTION_MIN_DURATION = 5  # seconds
-
-# Initialize pygame mixer for sound
-pygame.mixer.init()
 
 # Add alerts collection
 alerts = db['alerts']
@@ -54,10 +51,9 @@ def calculate_head_pose(landmarks):
 
 def sound_alarm(path):
     try:
-        pygame.mixer.music.load(path)
-        pygame.mixer.music.play()
-        while pygame.mixer.music.get_busy():
-            pygame.time.Clock().tick(10)
+        wave_obj = sa.WaveObject.from_wave_file(path)
+        play_obj = wave_obj.play()
+        play_obj.wait_done()  # Wait until sound has finished playing
     except Exception as e:
         print(f"Error playing sound: {e}")
 
@@ -213,7 +209,7 @@ def run_drowsiness_monitor(user_id, webcam_index=0, alarm_path="Alert.WAV"):
         cv2.putText(frame, f"User: {user_id}", (10, text_y_pos), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(RESIZE_FACTOR), (255, 255, 0), get_scaled_thickness(RESIZE_FACTOR))
         cv2.putText(frame, f"EAR: {ear:.2f}", (text_x_pos, text_y_pos), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(RESIZE_FACTOR), (0, 0, 255), get_scaled_thickness(RESIZE_FACTOR))
         cv2.putText(frame, f"YAWN: {distance:.2f}", (text_x_pos, text_y_pos + int(30 * RESIZE_FACTOR)), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(RESIZE_FACTOR), (0, 0, 255), get_scaled_thickness(RESIZE_FACTOR))
-        cv2.putText(frame, f"HEAD ANGLE: {head_angle:.1f}°", (text_x_pos, text_y_pos + int(60 * RESIZE_FACTOR)), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(RESIZE_FACTOR), (0, 0, 255), get_scaled_thickness(RESIZE_FACTOR))
+        cv2.putText(frame, f"HEAD ANGLE: {head_angle:.1f} Degree", (text_x_pos, text_y_pos + int(60 * RESIZE_FACTOR)), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(RESIZE_FACTOR), (0, 0, 255), get_scaled_thickness(RESIZE_FACTOR))
         cv2.putText(frame, f"FPS: {fps}", (text_x_pos, text_y_pos + int(90 * RESIZE_FACTOR)), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(RESIZE_FACTOR), (0, 0, 255), get_scaled_thickness(RESIZE_FACTOR))
         memory_usage = get_memory_usage()
         cv2.putText(frame, f"MEM: {memory_usage:.1f}MB", (text_x_pos, text_y_pos + int(120 * RESIZE_FACTOR)), cv2.FONT_HERSHEY_SIMPLEX, get_scaled_font_scale(RESIZE_FACTOR), (0, 0, 255), get_scaled_thickness(RESIZE_FACTOR))
