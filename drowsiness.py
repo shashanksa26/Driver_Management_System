@@ -9,6 +9,7 @@ import base64
 from datetime import datetime
 from MongoDB import employees, db
 import simpleaudio as sa
+from s3_utils import upload_image_to_s3
 
 # Global variables and constants
 EYE_AR_THRESH = 0.25
@@ -85,17 +86,26 @@ def get_memory_usage():
     return process.memory_info().rss / 1024 / 1024
 
 def save_alert(employee_id, name, alert_type, frame):
-    # Encode frame as base64
-    _, buffer = cv2.imencode('.jpg', frame)
-    img_base64 = base64.b64encode(buffer).decode('utf-8')
+    # Save frame as a temporary image file
+    import uuid
+    temp_filename = f"alert_{employee_id}_{uuid.uuid4().hex}.jpg"
+    temp_path = os.path.join("/tmp", temp_filename)
+    cv2.imwrite(temp_path, frame)
+    # Upload to S3
+    link, pending = upload_image_to_s3(temp_path, temp_filename)
     alert_doc = {
         'employee_id': employee_id,
         'name': name,
         'alert_type': alert_type,
         'timestamp': datetime.now(),
-        'frame_base64': img_base64
+        'frame_link': link,
+        'pending_upload': pending
     }
     alerts.insert_one(alert_doc)
+    print(f"frame link: {alert_doc['frame_link']}")
+    # Clean up temp file if uploaded
+    if not pending and os.path.exists(temp_path):
+        os.remove(temp_path)
 
 def run_drowsiness_monitor(user_id, webcam_index=0, alarm_path="Alert.WAV"):
     mp_face_mesh = mp.solutions.face_mesh
