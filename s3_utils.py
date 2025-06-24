@@ -3,7 +3,7 @@ import boto3
 from botocore.exceptions import BotoCoreError, NoCredentialsError, ClientError
 
 AWS_BUCKET = os.environ.get('AWS_S3_BUCKET')
-AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
+AWS_REGION = os.environ.get('AWS_REGION')
 PENDING_DIR = 'pending_uploads'
 
 if not os.path.exists(PENDING_DIR):
