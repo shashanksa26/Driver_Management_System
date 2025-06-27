@@ -1,6 +1,6 @@
 import mediapipe as mp
-from register import register_new_employee
-from recognize import recognize_faces
+from utils.register import register_new_employee
+from utils.recognize import recognize_faces
 
 def main_menu(face_detection):
     while True:

@@ -1,8 +1,8 @@
 import cv2
 import numpy as np
 from datetime import datetime
-from MongoDB import employees
-from face_model import extract_embedding
+from utils.MongoDB import employees
+from utils.face_model import extract_embedding
 
 def register_new_employee(face_detection):
     employee_id = input("Enter employee ID: ")

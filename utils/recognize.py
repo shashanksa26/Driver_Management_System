@@ -1,9 +1,9 @@
 import cv2
 import numpy as np
-from MongoDB import employees
-from face_model import extract_embedding
-from face_utils import cosine_similarity
-from drowsiness import run_drowsiness_monitor
+from utils.MongoDB import employees
+from utils.face_model import extract_embedding
+from utils.face_utils import cosine_similarity
+from utils.drowsiness import run_drowsiness_monitor
 
 def recognize_faces(face_detection):
     while True:

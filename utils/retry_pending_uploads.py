@@ -1,5 +1,5 @@
 import os
-from s3_utils import upload_image_to_s3
+from utils.s3_utils import upload_image_to_s3
 
 PENDING_DIR = 'pending_uploads'
 

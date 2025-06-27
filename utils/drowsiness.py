@@ -7,9 +7,9 @@ from threading import Thread
 import psutil
 import base64
 from datetime import datetime
-from MongoDB import employees, db
+from utils.MongoDB import employees, db
 import simpleaudio as sa
-from s3_utils import upload_image_to_s3
+from utils.s3_utils import upload_image_to_s3
 
 # Global variables and constants
 EYE_AR_THRESH = 0.25
